@@ -207,7 +207,10 @@ const sha256 = async (inputString) => {
     const device = await adapter.requestDevice();
   
     const fromHexString = (hexString) => Uint32Array.from((hexString.split("").map(e => e.charCodeAt(0) )));
-  
+
+    console.log("Input data (hex):", hexString);
+    console.log("Input data (Uint32Array):", fromHexString);
+    
     const firstMatrix = fromHexString(inputString);
     const gpuBufferFirstMatrix = device.createBuffer({
       mappedAtCreation: true,
@@ -332,6 +335,7 @@ const sha256 = async (inputString) => {
     for (let value of Array.from(new Uint32Array(arrayBuffer))) {
       str += value.toString(16);
     }
+    console.log("Hash:", str);
     return str;
   }
 
