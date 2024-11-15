@@ -1,28 +1,28 @@
 self.onmessage = function (event) {
-  console.log("Received message:", event.data); // Логируем входящее сообщение
+  console.log("Received message:", event.data); // Логируем полученное сообщение
   const data = JSON.parse(event.data);
 
   if (data.turboMode !== undefined) {
-    console.log("Turbo mode toggled:", data.turboMode); // Логируем состояние turboMode
+    console.log("Turbo mode received:", data.turboMode); // Логируем получение режима Turbo
     isTurboMode = data.turboMode;
     return;
   }
 
   if (data.startNonce !== undefined && data.endNonce !== undefined) {
-    console.log("Received nonce range:", data.startNonce, data.endNonce); // Логируем полученные диапазоны
+    console.log("Received new nonce range:", data.startNonce, data.endNonce); // Логируем новый диапазон nonce
     startNonce = data.startNonce;
     endNonce = data.endNonce;
 
     if (!isProcessing) {
-      console.log("Starting to process nonce ranges...");
+      console.log("Starting nonce processing..."); // Логируем начало обработки
       isProcessing = true;
       processNonceRanges();
     } else {
-      console.log("Queuing new nonce range");
+      console.log("Queueing new nonce range..."); // Логируем добавление в очередь
       nonceRanges.push({ startNonce, endNonce });
     }
   } else {
-    console.log("Received task data:", data); // Логируем данные задачи
+    console.log("Received task data:", data); // Логируем получение данных задачи
     if (taskData !== null) {
       taskDataUpdated = true;
       taskData = data;
@@ -49,10 +49,10 @@ const COOLDOWN_TIME = 1000;
 const HASH_THRESHOLD = 0.7;
 
 async function processNonceRanges() {
-  console.log("Processing nonce ranges...");
+  console.log("Processing nonce ranges..."); // Логируем начало процесса
   while (true) {
     if (taskDataUpdated) {
-      console.log("Task data updated, resetting ranges...");
+      console.log("Task data updated, clearing nonce ranges..."); // Логируем обновление данных задачи
       nonceRanges = [];
       startNonce = 0;
       endNonce = 0;
@@ -61,7 +61,7 @@ async function processNonceRanges() {
       await new Promise((resolve) => {
         const handler = function (event) {
           const data = JSON.parse(event.data);
-          console.log("Received new nonce range:", data); // Логируем получение нового диапазона
+          console.log("Received range after task data update:", data); // Логируем новый диапазон
           if (data.startNonce !== undefined && data.endNonce !== undefined) {
             startNonce = data.startNonce;
             endNonce = data.endNonce;
@@ -74,12 +74,14 @@ async function processNonceRanges() {
       continue;
     }
 
+    console.log("Processing current nonce range:", startNonce, endNonce); // Логируем текущий диапазон
     let result = await processNonceRange(taskData, startNonce, endNonce);
-    console.log("Nonce range processed, result:", result); // Логируем результат обработки
     if (result) {
+      console.log("Nonce processed successfully, sending result..."); // Логируем успешную обработку
       postMessage(JSON.stringify(result));
       break;
     } else {
+      console.log("No result found, checking next range..."); // Логируем отсутствие результата
       if (nonceRanges.length > 0) {
         const nextRange = nonceRanges.shift();
         startNonce = nextRange.startNonce;
@@ -89,6 +91,7 @@ async function processNonceRanges() {
         await new Promise((resolve) => {
           const handler = function (event) {
             const data = JSON.parse(event.data);
+            console.log("Received new range request:", data); // Логируем новый запрос диапазона
             if (data.startNonce !== undefined && data.endNonce !== undefined) {
               startNonce = data.startNonce;
               endNonce = data.endNonce;
@@ -104,7 +107,6 @@ async function processNonceRanges() {
 }
 
 async function checkThermal() {
-  console.log("Checking thermal status..."); // Логируем начало проверки теплового состояния
   if (isTurboMode) return;
 
   hashesProcessed++;
@@ -112,34 +114,32 @@ async function checkThermal() {
 
   if (now - lastMeasurement >= MEASURE_INTERVAL) {
     const currentHashRate = (hashesProcessed * 1000) / (now - lastMeasurement);
-    console.log("Current hash rate:", currentHashRate); // Логируем текущую скорость хэширования
-
     if (!baselineHashRate) {
       baselineHashRate = currentHashRate;
     } else {
       const performanceRatio = currentHashRate / baselineHashRate;
-      console.log("Performance ratio:", performanceRatio); // Логируем соотношение производительности
       needsCooldown = performanceRatio < HASH_THRESHOLD;
     }
 
     hashesProcessed = 0;
     lastMeasurement = now;
+    console.log("Thermal check: performance ratio:", (currentHashRate / baselineHashRate).toFixed(2)); // Логируем результаты термальной проверки
   }
 
   if (needsCooldown) {
-    console.log("Cooling down..."); // Логируем начало охлаждения
+    console.log("Cooldown needed..."); // Логируем необходимость в охлаждении
     await new Promise(resolve => setTimeout(resolve, COOLDOWN_TIME));
     needsCooldown = false;
   }
 }
 
 async function processNonceRange(task, startNonce, endNonce) {
-  console.log("Processing nonce range from", startNonce, "to", endNonce); // Логируем обрабатываемый диапазон
   let nonce = startNonce;
 
+  console.log("Processing nonce range from", startNonce, "to", endNonce); // Логируем диапазон nonce
   while (nonce < endNonce) {
     if (taskDataUpdated) {
-      console.log("Task data updated during processing, stopping...");
+      console.log("Task data updated, aborting nonce range process..."); // Логируем прерывание
       return null;
     }
 
@@ -148,11 +148,11 @@ async function processNonceRange(task, startNonce, endNonce) {
     const timestamp = Date.now();
     const input = `${task.index}-${task.previousHash}-${task.data}-${nonce}-${timestamp}-${task.minerId}`;
     const hash = await sha256(input);
+    console.log("Hash calculated:", hash); // Логируем вычисленный хэш
 
     const validState = isValidBlock(hash, task.mainFactor, task.shareFactor);
-    console.log("Hash processed:", hash, "State:", validState); // Логируем результат хэширования и состояние
-
     if (validState === 'valid') {
+      console.log("Valid block found, sending result..."); // Логируем успешный блок
       return {
         state: 'valid',
         hash: hash,
@@ -162,6 +162,7 @@ async function processNonceRange(task, startNonce, endNonce) {
         minerId: task.minerId,
       };
     } else if (validState === 'share') {
+      console.log("Share block found, sending result..."); // Логируем блок share
       postMessage(
         JSON.stringify({
           state: 'share',
@@ -186,9 +187,9 @@ async function calculateHash(index, previousHash, data, nonce, timestamp, minerI
 }
 
 function isValidBlock(hash, mainFactor, shareFactor) {
-  console.log("Validating hash:", hash); // Логируем хэш перед проверкой
+  console.log("Validating hash:", hash); // Логируем процесс валидации хэша
   if (typeof hash !== 'string' || !/^[0-9a-fA-F]+$/.test(hash)) {
-    console.error('Invalid hash value:', hash);
+    console.error('Invalid hash value:', hash); // Логируем ошибку при неверном хэше
     return 'notValid';
   }
 
