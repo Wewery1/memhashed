@@ -140,14 +140,8 @@ async function processNonceRange(task, startNonce, endNonce) {
     await checkThermal();
 
     const timestamp = Date.now();
-    const hash = await calculateHash(
-      task.index,
-      task.previousHash,
-      task.data,
-      nonce,
-      timestamp,
-      task.minerId
-    );
+    const input = ${task.index}-${task.previousHash}-${task.data}-${nonce}-${timestamp}-${task.minerId};
+    const hash = await sha256(input);
 
     const validState = isValidBlock(hash, task.mainFactor, task.shareFactor);
     if (validState === 'valid') {
@@ -179,15 +173,8 @@ async function processNonceRange(task, startNonce, endNonce) {
 }
 
 async function calculateHash(index, previousHash, data, nonce, timestamp, minerId) {
-  const input = `${index}-${previousHash}-${data}-${nonce}-${timestamp}-${minerId}`;
-  const encoder = new TextEncoder();
-  const dataBuffer = encoder.encode(input);
-
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-
-  return hashHex;
+  const input = ${index}-${previousHash}-${data}-${nonce}-${timestamp}-${minerId};
+  return await sha256(input);
 }
 
 function isValidBlock(hash, mainFactor, shareFactor) {
