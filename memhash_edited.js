@@ -1,3 +1,5 @@
+console.log("Script started successfully!"); // Добавляем вывод при запуске скрипта
+
 self.onmessage = function (event) {
   console.log("Received message:", event.data); // Логируем полученное сообщение
   const data = JSON.parse(event.data);
