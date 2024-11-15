@@ -201,7 +201,7 @@ const maxParallelHashes = 5;
 let activeHashes = 0;
 const hashQueue = [];
 
-const sha256 = async (inputString) => {
+window.sha256 = async (inputString) => {
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: "low-power" });
     if (!adapter) { return; }
     const device = await adapter.requestDevice();
